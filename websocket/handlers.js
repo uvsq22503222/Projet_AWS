@@ -45,10 +45,17 @@ function handleMessage(ws, msg, clients, users, wss) {
 
 
             wss.clients.forEach(client => {
-                client.send(JSON.stringify({
-                    type: "gameState",
-                    data: game
-                }));
+                const user = clients.get(client);
+
+                if (
+                    user === game.joueurs.blanc ||
+                    user === game.joueurs.noir
+                ) {
+                    client.send(JSON.stringify({
+                        type: "gameState",
+                        data: game
+                    }));
+                }
             });
 
             break;
@@ -73,11 +80,14 @@ function handleMessage(ws, msg, clients, users, wss) {
                 data.gameId,
                 data.from,
                 data.to,
-                player 
+                player
             );
 
             if (!game) {
-                console.log("move失败");
+                ws.send(JSON.stringify({
+                    type: "error",
+                    data: "Coup invalide ou pas ton tour"
+                }));
                 return;
             }
 
