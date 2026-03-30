@@ -25,3 +25,12 @@ L'interface du jeu doit être réalisée en JavaScript :
 - Les pions sont disposés au début la partie, et c'est au blanc de jouer.
 - Le joueur sélectionne le pion à jouer en cliquant dessus, puis il clique sur la case où le pion doit se déplacer. Le serveur vérifie que le coup est valide, et prend le pion adverse le cas échéant.
 - Lorsqu'un joueur a perdu tous ses pions, ce joueur est déclaré perdant et le jeu se termine.
+
+Modules supplémentaires
+
+- Utiliser une base de données No-SQL (par ex., MongoDB) à la place de SQL.
+- (Obligatoire en parcours SeCReTS et IRS) Configurer https sur le serveur Node.js.
+- Vous pouvez utiliser AJAX et l'API fetch vu en cours pour écrire l’application complète, cependant cela
+deviendrait rapidement désordonné, lent et sujet aux erreurs. À la place, vous pouvez remplacer les appels AJAX par des WebSockets. Pour gérer les WebSockets côté serveur, nous utiliserons le module ws.
+Côté client, nous utiliserons l’API native WebSocket. Ces deux interfaces sont très similaires.
+- Permettre à un utilisateur de quitter un jeu en abandonnant (le jeu est considéré comme perdu pour l’utilisateur). Gérer les déconnexions inattendues (abandonner le jeu si l’utilisateur est en train de jouer).
