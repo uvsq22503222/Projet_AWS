@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Partie</title>
+</head>
+<body>
+
+<h2>Jeu de dames</h2>
+
+<h3 id="playerInfo"></h3>
+<h3 id="turn"></h3>
+
+<div id="board"></div>
+
+<script src="js/socket.js"></script>
+
+<script>
+var currentGame = null;
+var selected = null;
+
+window.onload = () => {
+  const user = sessionStorage.getItem("user");
+
+  socket.onopen = () => {
+    socket.send(JSON.stringify({
+      type: "login",
+      data: { userId: user }
+    }));
+
+    socket.send(JSON.stringify({
+      type: "getGameState"
+    }));
+  };
+};
+
+function handleMessage(msg) {
+  console.log("partie收到:", msg);
+
+  if (msg.type === "gameState") {
+    currentGame = msg.data;
+
+    const user = sessionStorage.getItem("user");
+
+    let myColor = "";
+    if (user === currentGame.colors.white) {
+      myColor = "white（白棋）";
+    } else if (user === currentGame.colors.black) {
+      myColor = "black（黑棋）";
+    }
+
+    document.getElementById("playerInfo").innerText =
+      "你是: " + user + " - " + myColor;
+
+    document.getElementById("turn").innerText =
+      "当前回合: " + currentGame.turn;
+
+    renderBoard(currentGame.board);
+  }
+}
+
+function clickCell(x, y) {
+  if (!selected) {
+    selected = [x, y];
+    renderBoard(currentGame.board);
+  } else {
+    socket.send(JSON.stringify({
+      type: "move",
+      data: {
+        gameId: currentGame.id,
+        from: selected,
+        to: [x, y]
+      }
+    }));
+    selected = null;
+  }
+}
+
+function renderBoard(board) {
+  const div = document.getElementById("board");
+
+  div.innerHTML = "";
+  div.style.display = "grid";
+  div.style.gridTemplateColumns = "repeat(10, 40px)";
+
+  for (let i = 0; i < 10; i++) {
+    for (let j = 0; j < 10; j++) {
+
+      const cell = document.createElement("div");
+
+      cell.style.width = "40px";
+      cell.style.height = "40px";
+      cell.style.border = "1px solid black";
+
+      // 棋盘颜色
+      if ((i + j) % 2 === 0) {
+        cell.style.backgroundColor = "#eee";
+      } else {
+        cell.style.backgroundColor = "#666";
+      }
+
+      // 高亮选中
+      if (selected && selected[0] === i && selected[1] === j) {
+        cell.style.backgroundColor = "yellow";
+      }
+
+      // 棋子
+      if (board[i][j]) {
+        cell.innerText = board[i][j][0];
+        cell.style.textAlign = "center";
+        cell.style.lineHeight = "40px";
+        cell.style.color = "white";
+      }
+
+      cell.onclick = () => clickCell(i, j);
+
+      div.appendChild(cell);
+    }
+  }
+}
+</script>
+
+</body>
+</html>

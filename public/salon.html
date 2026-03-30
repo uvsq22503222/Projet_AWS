@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Salon</title>
+</head>
+<body>
+
+<h2>Salon</h2>
+
+<select id="user">
+  <option value="player1">player1</option>
+  <option value="player2">player2</option>
+</select>
+
+<button onclick="login()">Login</button>
+<button onclick="challenge()">Challenge</button>
+
+<p id="status"></p>
+
+<script src="js/socket.js"></script>
+
+<script>
+var currentUser = null;
+
+function login() {
+  currentUser = document.getElementById("user").value;
+
+  sessionStorage.setItem("user", currentUser);
+
+  socket.send(JSON.stringify({
+    type: "login",
+    data: { userId: currentUser }
+  }));
+
+  document.getElementById("status").innerText =
+    "Logged in as " + currentUser;
+}
+
+function challenge() {
+  if (!currentUser) {
+    alert("请先登录！");
+    return;
+  }
+
+  const opponent = currentUser === "player1" ? "player2" : "player1";
+
+  socket.send(JSON.stringify({
+    type: "challenge",
+    data: { from: currentUser, to: opponent }
+  }));
+}
+
+function handleMessage(msg) {
+  console.log("salon收到:", msg);
+
+  if (msg.type === "challenge") {
+    socket.send(JSON.stringify({
+      type: "acceptChallenge",
+      data: msg.data
+    }));
+  }
+
+  if (msg.type === "startGame") {
+    window.location.href = "partie.html";
+  }
+}
+</script>
+
+</body>
+</html>

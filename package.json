@@ -1,0 +1,24 @@
+{
+  "name": "projet_aws",
+  "version": "1.0.0",
+  "description": "Jeu de dames",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uvsq22503222/Projet_AWS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/uvsq22503222/Projet_AWS/issues"
+  },
+  "homepage": "https://github.com/uvsq22503222/Projet_AWS#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "ws": "^8.20.0"
+  }
+}
