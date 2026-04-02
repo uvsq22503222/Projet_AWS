@@ -8,10 +8,25 @@ function handleMessage(ws, msg, clients, users, wss) {
         case "login":
             clients.set(ws, data.userId);
 
-            ws.send(JSON.stringify({
-                type: "loginSuccess",
-                data: users
-            }));
+            const user = {
+                id: data.userId,
+                username: data.username
+            };
+
+            if (!users.find(u => u.id === user.id)) {
+                users.push(user);
+            }
+
+            console.log("当前在线用户:", users);
+
+            // boradcast players
+            wss.clients.forEach(client => {
+                client.send(JSON.stringify({
+                    type: "players",
+                    data: users
+                }));
+            });
+
             break;
 
         case "challenge":
@@ -26,7 +41,10 @@ function handleMessage(ws, msg, clients, users, wss) {
                 opponent[0].send(JSON.stringify({
                     type: "challenge",
                     data: {
-                        from: data.from,
+                        from: {
+                            id: data.from,
+                            username: users.find(u => u.id === data.from).username
+                        },
                         to: data.to
                     }
                 }));
@@ -36,16 +54,14 @@ function handleMessage(ws, msg, clients, users, wss) {
         case "acceptChallenge": {
             const game = createGame(data.from, data.to);
             console.log("游戏开始:", game);
+
             wss.clients.forEach(client => {
+                const user = clients.get(client);
+
                 client.send(JSON.stringify({
                     type: "startGame",
                     data: game
                 }));
-            });
-
-
-            wss.clients.forEach(client => {
-                const user = clients.get(client);
 
                 if (
                     user === game.joueurs.blanc ||

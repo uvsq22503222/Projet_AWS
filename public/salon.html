@@ -3,68 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <title>Salon</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<h2>Salon</h2>
+<div class="container">
 
-<select id="user">
-  <option value="player1">player1</option>
-  <option value="player2">player2</option>
-</select>
+  <h2>Salon</h2>
 
-<button onclick="login()">Login</button>
-<button onclick="challenge()">Challenge</button>
+  <p id="me"></p>
 
-<p id="status"></p>
+  <div class="player-list" id="players"></div>
 
-<script src="js/socket.js"></script>
+</div>
 
 <script>
-var currentUser = null;
+const user = JSON.parse(sessionStorage.getItem("user"));
 
-function login() {
-  currentUser = document.getElementById("user").value;
+if (!user) {
+  alert("login first");
+  window.location.href = "/";
+}
 
-  sessionStorage.setItem("user", currentUser);
+document.getElementById("me").innerText =
+  "Current User: " + user.username;
+
+const socket = new WebSocket("ws://localhost:3000");
+
+socket.onopen = () => {
+  console.log("WebSocket connected");
 
   socket.send(JSON.stringify({
     type: "login",
-    data: { userId: currentUser }
+    data: {
+      userId: user.id,
+      username: user.username
+    }
   }));
+};
 
-  document.getElementById("status").innerText =
-    "Logged in as " + currentUser;
-}
+socket.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  console.log("收到:", msg);
 
-function challenge() {
-  if (!currentUser) {
-    alert("请先登录！");
-    return;
+  if (msg.type === "players") {
+    renderPlayers(msg.data);
   }
 
-  const opponent = currentUser === "player1" ? "player2" : "player1";
-
-  socket.send(JSON.stringify({
-    type: "challenge",
-    data: { from: currentUser, to: opponent }
-  }));
-}
-
-function handleMessage(msg) {
-  console.log("salon收到:", msg);
-
   if (msg.type === "challenge") {
-    socket.send(JSON.stringify({
-      type: "acceptChallenge",
-      data: msg.data
-    }));
+    const from = msg.data.from;
+
+    if (confirm(from.username + " challenges you! Accept?")) {
+      socket.send(JSON.stringify({
+        type: "acceptChallenge",
+        data: {
+          from: from.id,
+          to: user.id
+        }
+      }));
+    }
   }
 
   if (msg.type === "startGame") {
-    window.location.href = "partie.html";
+    console.log("收到 startGame 消息，准备进入游戏界面");
+    window.location.href = "/partie.html";
   }
+};
+
+function renderPlayers(players) {
+  const list = document.getElementById("players");
+  list.innerHTML = "";
+
+  players.forEach(p => {
+    if (p.id === user.id) return;
+
+    const div = document.createElement("div");
+    div.className = "player";
+
+    const name = document.createElement("span");
+    name.innerText = p.username;
+
+    const btn = document.createElement("button");
+    btn.innerText = "challenge";
+    btn.className = "small-btn";
+
+    btn.onclick = () => {
+      socket.send(JSON.stringify({
+        type: "challenge",
+        data: {
+          from: user.id,
+          to: p.id
+        }
+      }));
+    };
+
+    div.appendChild(name);
+    div.appendChild(btn);
+    list.appendChild(div);
+  });
 }
+
 </script>
 
 </body>

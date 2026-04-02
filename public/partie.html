@@ -1,64 +1,76 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <title>Partie</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body>
+<body style="flex-direction: column; height:auto; padding-top:40px;">
 
   <h2>Jeu de dames</h2>
 
-  <h3 id="playerInfo"></h3>
-  <h3 id="turn"></h3>
+  <div class="container" style="width:400px;">
+    <h3 id="playerInfo"></h3>
+    <h3 id="turn"></h3>
+  </div>
 
-  <div id="board"></div>
-
-  <script src="js/socket.js"></script>
+  <div id="board" style="margin-top:30px;"></div>
 
   <script>
     var currentGame = null;
     var selected = null;
 
-    window.onload = () => {
-      const user = sessionStorage.getItem("user");
+    const user = JSON.parse(sessionStorage.getItem("user"));
 
-      socket.onopen = () => {
-        socket.send(JSON.stringify({
-          type: "login",
-          data: { userId: user }
-        }));
+    if (!user) {
+      alert("please login first");
+      window.location.href = "/";
+    }
 
-        socket.send(JSON.stringify({
-          type: "getGameState"
-        }));
-      };
+    const socket = new WebSocket("ws://localhost:3000");
+
+    socket.onopen = () => {
+      console.log("partie socket connected");
+
+      socket.send(JSON.stringify({
+        type: "login",
+        data: {
+          userId: user.id,
+          username: user.username
+        }
+      }));
+
+      socket.send(JSON.stringify({
+        type: "getGameState"
+      }));
     };
 
-    function handleMessage(msg) {
+    socket.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
       console.log("partie收到:", msg);
 
       if (msg.type === "gameState") {
         currentGame = msg.data;
 
-        const user = sessionStorage.getItem("user");
-
         let myColor = "";
-        if (user === currentGame.joueurs.blanc) {
+
+        if (user.id === currentGame.joueurs.blanc) {
           myColor = "blanc（白棋）";
-        } else if (user === currentGame.joueurs.noir) {
+        } else if (user.id === currentGame.joueurs.noir) {
           myColor = "noir（黑棋）";
         }
 
         document.getElementById("playerInfo").innerText =
-          "你是: " + user + " - " + myColor;
+          "你是: " + user.username + " - " + myColor;
 
         document.getElementById("turn").innerText =
           "当前回合: " + currentGame.tour;
 
         renderBoard(currentGame.plateau);
       }
-    }
+    };
 
     function clickCell(x, y) {
       if (!selected) {

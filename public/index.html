@@ -1,20 +1,87 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <title>Accueil</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
 
-<h2>Jeu de Dames</h2>
+  <div class="container">
 
-<button onclick="go()">Entrer dans le salon</button>
+    <h2>Jeu de Dames</h2>
 
-<script>
-function go() {
-  window.location.href = "salon.html";
-}
-</script>
+    <div class="section">
+      <h3>Connexion</h3>
+      <input id="username" placeholder="Nom d'utilisateur">
+      <input id="password" type="password" placeholder="Mot de passe">
+      <button onclick="login()">Se connecter</button>
+    </div>
+
+    <hr>
+
+    <div class="section">
+      <h3>Inscription</h3>
+      <input id="reg-username" placeholder="Nom d'utilisateur">
+      <input id="reg-password" type="password" placeholder="Mot de passe">
+      <button onclick="register()">S'inscrire</button>
+    </div>
+
+  </div>
+
+  <script>
+
+    // login
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      const res = await fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        sessionStorage.setItem("user", JSON.stringify(data.user));
+        document.getElementById('username').value = "";
+        document.getElementById('password').value = "";
+
+        window.location.href = "/salon.html";
+
+      } else {
+        alert(data.error);
+      }
+    }
+
+    // register
+    async function register() {
+      const username = document.getElementById('reg-username').value;
+      const password = document.getElementById('reg-password').value;
+
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Inscription réussie !");
+
+        document.getElementById('reg-username').value = "";
+        document.getElementById('reg-password').value = "";
+      } else {
+        alert(data.error);
+      }
+    }
+  </script>
 
 </body>
+
 </html>
