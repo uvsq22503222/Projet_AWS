@@ -11,7 +11,7 @@ async function init() {
       table.integer('score').defaultTo(0);
     });
 
-    console.log("users表创建成功");
+    console.log("Table users créée avec succès");
   }
 }
 

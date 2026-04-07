@@ -18,6 +18,18 @@
 
   <div id="board" style="margin-top:30px;"></div>
 
+  <div id="gameOver" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+       background:rgba(0,0,0,0.6); z-index:100; flex-direction:column;
+       align-items:center; justify-content:center;">
+    <div style="background:white; padding:40px; border-radius:12px; text-align:center;">
+      <h2 id="gameOverMsg" style="margin-bottom:20px;"></h2>
+      <button onclick="window.location.href='/salon.html'"
+              style="padding:10px 24px; font-size:16px; cursor:pointer;">
+        Retour au salon
+      </button>
+    </div>
+  </div>
+
   <script>
     var currentGame = null;
     var selected = null;
@@ -49,7 +61,7 @@
 
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
-      console.log("partie收到:", msg);
+      console.log("Message reçu :", msg);
 
       if (msg.type === "gameState") {
         currentGame = msg.data;
@@ -57,18 +69,25 @@
         let myColor = "";
 
         if (user.id === currentGame.joueurs.blanc) {
-          myColor = "blanc（白棋）";
+          myColor = "blanc";
         } else if (user.id === currentGame.joueurs.noir) {
-          myColor = "noir（黑棋）";
+          myColor = "noir";
         }
 
         document.getElementById("playerInfo").innerText =
-          "你是: " + user.username + " - " + myColor;
+          "Vous jouez : " + user.username + " — " + myColor;
 
         document.getElementById("turn").innerText =
-          "当前回合: " + currentGame.tour;
+          "Tour : " + currentGame.tour;
 
         renderBoard(currentGame.plateau);
+
+        if (currentGame.gagnant) {
+          const myColorKey = user.id === currentGame.joueurs.blanc ? "blanc" : "noir";
+          const isWinner = currentGame.gagnant === myColorKey;
+          document.getElementById("gameOverMsg").innerText = isWinner ? "Vous avez gagné !" : "Vous avez perdu...";
+          document.getElementById("gameOver").style.display = "flex";
+        }
       }
     };
 
@@ -105,19 +124,19 @@
           cell.style.height = "40px";
           cell.style.border = "1px solid black";
 
-          // 棋盘颜色
+          // couleur de la case
           if ((i + j) % 2 === 0) {
             cell.style.backgroundColor = "#eee";
           } else {
             cell.style.backgroundColor = "#666";
           }
 
-          // 高亮选中
+          // surbrillance sélection
           if (selected && selected[0] === i && selected[1] === j) {
             cell.style.backgroundColor = "yellow";
           }
 
-          // 棋子
+          // pion
           if (board[i][j]) {
             const piece = board[i][j];
 

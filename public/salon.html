@@ -44,7 +44,7 @@ socket.onopen = () => {
 
 socket.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-  console.log("收到:", msg);
+  console.log("Message reçu :", msg);
 
   if (msg.type === "players") {
     renderPlayers(msg.data);
@@ -65,7 +65,7 @@ socket.onmessage = (event) => {
   }
 
   if (msg.type === "startGame") {
-    console.log("收到 startGame 消息，准备进入游戏界面");
+    console.log("Message startGame reçu, redirection vers la partie");
     window.location.href = "/partie.html";
   }
 };
@@ -81,7 +81,7 @@ function renderPlayers(players) {
     div.className = "player";
 
     const name = document.createElement("span");
-    name.innerText = p.username;
+    name.innerText = p.username + "  (Victoires : " + (p.score || 0) + ")";
 
     const btn = document.createElement("button");
     btn.innerText = "challenge";

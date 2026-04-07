@@ -1,25 +1,27 @@
 const { createGame, makeMove, games } = require('../game/gameManager');
+const db = require('../db');
 
-function handleMessage(ws, msg, clients, users, wss) {
+async function handleMessage(ws, msg, clients, users, wss) {
     const { type, data } = JSON.parse(msg);
 
     switch (type) {
 
-        case "login":
+        case "login": {
             clients.set(ws, data.userId);
 
+            const dbUser = await db('users').where({ id: data.userId }).first();
             const user = {
                 id: data.userId,
-                username: data.username
+                username: data.username,
+                score: dbUser ? dbUser.score : 0
             };
 
             if (!users.find(u => u.id === user.id)) {
                 users.push(user);
             }
 
-            console.log("当前在线用户:", users);
+            console.log("Utilisateurs en ligne :", users);
 
-            // boradcast players
             wss.clients.forEach(client => {
                 client.send(JSON.stringify({
                     type: "players",
@@ -28,14 +30,15 @@ function handleMessage(ws, msg, clients, users, wss) {
             });
 
             break;
+        }
 
         case "challenge":
             console.log("avoir challenge")
             const opponent = [...clients.entries()].find(
                 ([, id]) => id === data.to
             );
-            console.log("当前clients:", [...clients.values()]);
-            console.log("要找:", data.to);
+            console.log("Clients connectés :", [...clients.values()]);
+            console.log("Recherche du joueur :", data.to);
 
             if (opponent) {
                 opponent[0].send(JSON.stringify({
@@ -53,7 +56,7 @@ function handleMessage(ws, msg, clients, users, wss) {
 
         case "acceptChallenge": {
             const game = createGame(data.from, data.to);
-            console.log("游戏开始:", game);
+            console.log("Partie lancée :", game);
 
             wss.clients.forEach(client => {
                 const user = clients.get(client);
@@ -90,7 +93,7 @@ function handleMessage(ws, msg, clients, users, wss) {
         case "move": {
             const player = clients.get(ws);
 
-            console.log("move来自:", player);
+            console.log("Coup reçu de :", player);
 
             const game = makeMove(
                 data.gameId,
@@ -105,6 +108,15 @@ function handleMessage(ws, msg, clients, users, wss) {
                     data: "Coup invalide ou pas ton tour"
                 }));
                 return;
+            }
+
+            if (game.gagnant) {
+                const winnerId = game.gagnant === "blanc"
+                    ? game.joueurs.blanc
+                    : game.joueurs.noir;
+                await db('users').where({ id: winnerId }).increment('score', 1);
+                const winnerUser = users.find(u => u.id === winnerId);
+                if (winnerUser) winnerUser.score = (winnerUser.score || 0) + 1;
             }
 
             wss.clients.forEach(client => {
