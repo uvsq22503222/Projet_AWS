@@ -17,6 +17,7 @@
       <h3>Connexion</h3>
       <input id="username" placeholder="Nom d'utilisateur">
       <input id="password" type="password" placeholder="Mot de passe">
+      <p id="login-error" style="color:red; margin-bottom:6px; min-height:1em;"></p>
       <button onclick="login()">Se connecter</button>
     </div>
 
@@ -26,6 +27,7 @@
       <h3>Inscription</h3>
       <input id="reg-username" placeholder="Nom d'utilisateur">
       <input id="reg-password" type="password" placeholder="Mot de passe">
+      <p id="register-error" style="color:red; margin-bottom:6px; min-height:1em;"></p>
       <button onclick="register()">S'inscrire</button>
     </div>
 
@@ -33,10 +35,24 @@
 
   <script>
 
+    function showError(id, msg) {
+      document.getElementById(id).innerText = msg;
+    }
+
     // login
     async function login() {
-      const username = document.getElementById('username').value;
+      const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
+
+      if (!username) {
+        showError('login-error', "Veuillez saisir un nom d'utilisateur.");
+        return;
+      }
+      if (!password) {
+        showError('login-error', "Veuillez saisir un mot de passe.");
+        return;
+      }
+      showError('login-error', '');
 
       const res = await fetch('/login', {
         method: 'POST',
@@ -50,18 +66,32 @@
         sessionStorage.setItem("user", JSON.stringify(data.user));
         document.getElementById('username').value = "";
         document.getElementById('password').value = "";
-
         window.location.href = "/salon.html";
-
+      } else if (data.error === 'username not found') {
+        showError('login-error', "Nom d'utilisateur introuvable.");
+      } else if (data.error === 'incorrect password') {
+        showError('login-error', "Mot de passe incorrect.");
       } else {
-        alert(data.error);
+        showError('login-error', data.error);
       }
     }
 
     // register
     async function register() {
-      const username = document.getElementById('reg-username').value;
+      const username = document.getElementById('reg-username').value.trim();
       const password = document.getElementById('reg-password').value;
+
+      if (!username) {
+        document.getElementById('register-error').style.color = 'red';
+        showError('register-error', "Veuillez saisir un nom d'utilisateur.");
+        return;
+      }
+      if (!password) {
+        document.getElementById('register-error').style.color = 'red';
+        showError('register-error', "Veuillez saisir un mot de passe.");
+        return;
+      }
+      showError('register-error', '');
 
       const res = await fetch('/register', {
         method: 'POST',
@@ -72,12 +102,13 @@
       const data = await res.json();
 
       if (data.success) {
-        alert("Inscription réussie !");
-
         document.getElementById('reg-username').value = "";
         document.getElementById('reg-password').value = "";
+        document.getElementById('register-error').style.color = 'green';
+        showError('register-error', "Inscription réussie !");
       } else {
-        alert(data.error);
+        document.getElementById('register-error').style.color = 'red';
+        showError('register-error', "Ce nom d'utilisateur est déjà pris.");
       }
     }
   </script>
