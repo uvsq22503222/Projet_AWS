@@ -11,15 +11,17 @@ let gameId = 1;
 function createGame(p1, p2) {
   const id = gameId++;
 
+  const plateau = initialiserPlateau();
   games[id] = {
     id,
     joueurs: {
       blanc: p1,
       noir: p2,
     },
-    plateau: initialiserPlateau(),
+    plateau,
     tour: "blanc",
     gagnant: null,
+    coupsDisponibles: coupsValides(plateau, "blanc"),
   };
 
   return games[id];
@@ -64,6 +66,7 @@ function makeMove(id, from, to, joueur) {
   }
 
   game.tour = game.tour === "blanc" ? "noir" : "blanc";
+  game.coupsDisponibles = coupsValides(game.plateau, game.tour);
 
   return game;
 }

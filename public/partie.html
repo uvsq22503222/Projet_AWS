@@ -114,6 +114,13 @@
       div.style.display = "grid";
       div.style.gridTemplateColumns = "repeat(10, 40px)";
 
+      const maCouleur = currentGame.joueurs.blanc === user.id ? "blanc" : "noir";
+      const monTour = currentGame.tour === maCouleur;
+      const captures = monTour
+        ? (currentGame.coupsDisponibles || []).filter(c => c.prise !== null)
+        : [];
+      const aCapture = new Set(captures.map(c => c.prise[0] + "," + c.prise[1]));
+
       for (let i = 0; i < 10; i++) {
         for (let j = 0; j < 10; j++) {
 
@@ -128,6 +135,11 @@
             cell.style.backgroundColor = "#eee";
           } else {
             cell.style.backgroundColor = "#666";
+          }
+
+          // surbrillance prise obligatoire
+          if (aCapture.has(i + "," + j)) {
+            cell.style.backgroundColor = "#4caf50";
           }
 
           // surbrillance sélection
