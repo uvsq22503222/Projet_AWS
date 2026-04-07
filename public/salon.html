@@ -15,17 +15,29 @@
 
   <div class="player-list" id="players"></div>
 
+  <div id="challenge-incoming" style="display:none; margin-top:16px; padding:12px;
+       border:1px solid #aaa; border-radius:8px; background:#f9f9f9;">
+    <p id="challenge-incoming-msg" style="margin:0 0 10px;"></p>
+    <div style="display:flex; gap:8px;">
+      <button onclick="acceptChallenge()" style="width:auto; flex:1; margin-top:0;">Accepter</button>
+      <button onclick="declineChallenge()" style="width:auto; flex:1; margin-top:0;">Refuser</button>
+    </div>
+  </div>
+
+  <p id="challenge-status" style="margin-top:12px; min-height:1em;"></p>
+
 </div>
 
 <script>
 const user = JSON.parse(sessionStorage.getItem("user"));
+let pendingChallenger = null;
 
 if (!user) {
   window.location.href = "/";
 }
 
 document.getElementById("me").innerText =
-  "Current User: " + user.username;
+  "Connecté : " + user.username;
 
 const socket = new WebSocket("ws://localhost:3000");
 
@@ -50,17 +62,15 @@ socket.onmessage = (event) => {
   }
 
   if (msg.type === "challenge") {
-    const from = msg.data.from;
+    pendingChallenger = msg.data.from;
+    document.getElementById("challenge-incoming-msg").innerText =
+      msg.data.from.username + " vous défie !";
+    document.getElementById("challenge-incoming").style.display = "block";
+  }
 
-    if (confirm(from.username + " challenges you! Accept?")) {
-      socket.send(JSON.stringify({
-        type: "acceptChallenge",
-        data: {
-          from: from.id,
-          to: user.id
-        }
-      }));
-    }
+  if (msg.type === "declineChallenge") {
+    document.getElementById("challenge-status").innerText =
+      msg.data.username + " a refusé votre défi.";
   }
 
   if (msg.type === "startGame") {
@@ -68,6 +78,26 @@ socket.onmessage = (event) => {
     window.location.href = "/partie.html";
   }
 };
+
+function acceptChallenge() {
+  if (!pendingChallenger) return;
+  socket.send(JSON.stringify({
+    type: "acceptChallenge",
+    data: { from: pendingChallenger.id, to: user.id }
+  }));
+  document.getElementById("challenge-incoming").style.display = "none";
+  pendingChallenger = null;
+}
+
+function declineChallenge() {
+  if (!pendingChallenger) return;
+  socket.send(JSON.stringify({
+    type: "declineChallenge",
+    data: { from: user.id, to: pendingChallenger.id }
+  }));
+  document.getElementById("challenge-incoming").style.display = "none";
+  pendingChallenger = null;
+}
 
 function renderPlayers(players) {
   const list = document.getElementById("players");
@@ -83,17 +113,16 @@ function renderPlayers(players) {
     name.innerText = p.username + "  (Victoires : " + (p.score || 0) + ")";
 
     const btn = document.createElement("button");
-    btn.innerText = "challenge";
+    btn.innerText = "Défier";
     btn.className = "small-btn";
 
     btn.onclick = () => {
       socket.send(JSON.stringify({
         type: "challenge",
-        data: {
-          from: user.id,
-          to: p.id
-        }
+        data: { from: user.id, to: p.id }
       }));
+      document.getElementById("challenge-status").innerText =
+        "Défi envoyé à " + p.username + "...";
     };
 
     div.appendChild(name);

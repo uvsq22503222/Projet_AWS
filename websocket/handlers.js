@@ -59,24 +59,25 @@ async function handleMessage(ws, msg, clients, users, wss) {
             console.log("Partie lancée :", game);
 
             wss.clients.forEach(client => {
-                const user = clients.get(client);
-
-                client.send(JSON.stringify({
-                    type: "startGame",
-                    data: game
-                }));
-
-                if (
-                    user === game.joueurs.blanc ||
-                    user === game.joueurs.noir
-                ) {
-                    client.send(JSON.stringify({
-                        type: "gameState",
-                        data: game
-                    }));
+                const clientUser = clients.get(client);
+                if (clientUser === game.joueurs.blanc || clientUser === game.joueurs.noir) {
+                    client.send(JSON.stringify({ type: "startGame", data: game }));
+                    client.send(JSON.stringify({ type: "gameState", data: game }));
                 }
             });
 
+            break;
+        }
+
+        case "declineChallenge": {
+            const challenger = [...clients.entries()].find(([, id]) => id === data.to);
+            if (challenger) {
+                const decliner = users.find(u => u.id === data.from);
+                challenger[0].send(JSON.stringify({
+                    type: "declineChallenge",
+                    data: { username: decliner ? decliner.username : "Adversaire" }
+                }));
+            }
             break;
         }
 
