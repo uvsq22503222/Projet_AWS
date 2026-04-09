@@ -29,17 +29,17 @@ function createGame(p1, p2) {
 
 function makeMove(id, from, to, joueur) {
   const game = games[id];
-  if (!game) return null;
+  if (!game) return { error: "Partie non trouvée" };
 
   const piece = game.plateau[from[0]][from[1]];
-  if (!piece) return null;
+  if (!piece) return { error: "Pas de pièce ici" };
 
   if (
     (game.tour === "blanc" && joueur !== game.joueurs.blanc) ||
     (game.tour === "noir" && joueur !== game.joueurs.noir)
   ) {
     console.log("❌ Pas ton tour");
-    return null;
+    return { error: "Pas ton tour" };
   }
 
   const coups = coupsValides(game.plateau, game.tour);
@@ -54,7 +54,7 @@ function makeMove(id, from, to, joueur) {
 
   if (!coup) {
     console.log("❌ Coup invalide");
-    return null;
+    return { error: "Coup invalide" };
   }
 
   game.plateau = appliquerCoup(game.plateau, coup);

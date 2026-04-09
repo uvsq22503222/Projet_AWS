@@ -1,5 +1,6 @@
 const { createGame, makeMove, games } = require('../game/gameManager');
 const db = require('../db');
+const playerGameMap = new Map(); // userId -> gameId
 
 async function handleMessage(ws, msg, clients, users, wss) {
     const { type, data } = JSON.parse(msg);
@@ -58,6 +59,9 @@ async function handleMessage(ws, msg, clients, users, wss) {
             const game = createGame(data.from, data.to);
             console.log("Partie lancée :", game);
 
+            playerGameMap.set(data.from, game.id);
+            playerGameMap.set(data.to, game.id);
+
             wss.clients.forEach(client => {
                 const clientUser = clients.get(client);
                 if (clientUser === game.joueurs.blanc || clientUser === game.joueurs.noir) {
@@ -82,7 +86,17 @@ async function handleMessage(ws, msg, clients, users, wss) {
         }
 
         case "getGameState": {
-            const game = Object.values(games)[0];
+            const player = clients.get(ws);
+            const gameId = playerGameMap.get(player);
+            const game = games[gameId];
+
+            if (!game) {
+                ws.send(JSON.stringify({
+                    type: "error",
+                    data: "Aucune partie en cours"
+                }));
+                return;
+            }
 
             ws.send(JSON.stringify({
                 type: "gameState",
@@ -103,10 +117,10 @@ async function handleMessage(ws, msg, clients, users, wss) {
                 player
             );
 
-            if (!game) {
+            if (game && game.error) {
                 ws.send(JSON.stringify({
                     type: "error",
-                    data: "Coup invalide ou pas ton tour"
+                    data: game.error
                 }));
                 return;
             }
@@ -118,13 +132,19 @@ async function handleMessage(ws, msg, clients, users, wss) {
                 await db('users').where({ id: winnerId }).increment('score', 1);
                 const winnerUser = users.find(u => u.id === winnerId);
                 if (winnerUser) winnerUser.score = (winnerUser.score || 0) + 1;
+
+                playerGameMap.delete(game.joueurs.blanc);
+                playerGameMap.delete(game.joueurs.noir);
             }
 
             wss.clients.forEach(client => {
-                client.send(JSON.stringify({
-                    type: "gameState",
-                    data: game
-                }));
+                const clientUser = clients.get(client);
+                if (clientUser === game.joueurs.blanc || clientUser === game.joueurs.noir) {
+                    client.send(JSON.stringify({
+                        type: "gameState",
+                        data: game
+                    }));
+                }
             });
 
             break;

@@ -14,6 +14,7 @@
   <div class="container" style="width:400px;">
     <h3 id="playerInfo"></h3>
     <h3 id="turn"></h3>
+    <h3 id="errorBox" style="color:red; height:20px;"></h3>
   </div>
 
   <div id="board" style="margin-top:30px;"></div>
@@ -61,6 +62,11 @@
     socket.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       console.log("Message reçu :", msg);
+
+      if (msg.type === "error") {
+        showError(msg.data);
+        return;
+      }
 
       if (msg.type === "gameState") {
         currentGame = msg.data;
@@ -168,6 +174,15 @@
           div.appendChild(cell);
         }
       }
+    }
+
+    function showError(msg) {
+      const box = document.getElementById("errorBox");
+      box.innerText = msg;
+
+      setTimeout(() => {
+        box.innerText = "";
+      }, 2000);
     }
   </script>
 
