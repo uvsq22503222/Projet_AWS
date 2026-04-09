@@ -26,7 +26,7 @@ async function handleMessage(ws, msg, clients, users, wss) {
             wss.clients.forEach(client => {
                 client.send(JSON.stringify({
                     type: "players",
-                    data: users
+                    data: users.map(u => ({ ...u, inGame: playerGameMap.has(u.id) }))
                 }));
             });
 
@@ -34,7 +34,25 @@ async function handleMessage(ws, msg, clients, users, wss) {
         }
 
         case "challenge":
-            console.log("avoir challenge")
+            const from = data.from;
+            const to = data.to;
+
+            if(playerGameMap.has(from)){
+                ws.send(JSON.stringify({
+                    type: "error",
+                    data: "Vous êtes déjà dans une partie"
+                }));
+                return;
+            }
+
+            if(playerGameMap.has(to)){
+                ws.send(JSON.stringify({
+                    type: "error",
+                    data: "Ce joueur est déjà dans une partie"
+                }));
+                return;
+            }
+
             const opponent = [...clients.entries()].find(
                 ([, id]) => id === data.to
             );
@@ -69,6 +87,8 @@ async function handleMessage(ws, msg, clients, users, wss) {
                     client.send(JSON.stringify({ type: "gameState", data: game }));
                 }
             });
+
+            broadcastPlayers(wss, users, playerGameMap);
 
             break;
         }
@@ -135,6 +155,8 @@ async function handleMessage(ws, msg, clients, users, wss) {
 
                 playerGameMap.delete(game.joueurs.blanc);
                 playerGameMap.delete(game.joueurs.noir);
+
+                broadcastPlayers(wss, users, playerGameMap);
             }
 
             wss.clients.forEach(client => {
@@ -151,5 +173,19 @@ async function handleMessage(ws, msg, clients, users, wss) {
         }
     }
 }
+
+function broadcastPlayers(wss, users, playerGameMap) {
+    wss.clients.forEach(client => {
+        client.send(JSON.stringify({
+            type: "players",
+            data: users.map(u => ({
+                ...u,
+                inGame: playerGameMap.has(u.id)
+            }))
+        }));
+    });
+}
+
+
 
 module.exports = { handleMessage };

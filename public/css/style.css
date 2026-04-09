@@ -74,3 +74,8 @@ hr {
   padding: 5px 10px;
   font-size: 12px;
 }
+
+.disabled-btn{
+  background: #ccc;
+  cursor: not-allowed;
+}
