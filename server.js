@@ -5,7 +5,7 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const db = require('./db');
 
-const { handleMessage } = require('./websocket/handlers');
+const { handleMessage, handleDisconnect } = require('./websocket/handlers');
 
 const app = express();
 
@@ -76,10 +76,11 @@ wss.on('connection', (ws) => {
     handleMessage(ws, msg, clients, users, wss);
   });
 
-  ws.on('close', () => {
+  ws.on('close', async () => {
     const userId = clients.get(ws);
 
-    // supprimer de clients et users
+    await handleDisconnect(ws, clients, users, wss);
+
     clients.delete(ws);
 
     const index = users.findIndex(u => u.id === userId);

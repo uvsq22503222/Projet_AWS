@@ -1,7 +1,7 @@
 # Projet_AWS
 
-- GE Shuning
-- HUANG Yanmo
+- GE Shuning(AMIS)
+- HUANG Yanmo(DATASCALE)
 
 
 Jeu de dames

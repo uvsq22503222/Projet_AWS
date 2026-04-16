@@ -34,7 +34,13 @@
 
   <script>
     var currentGame = null;
-    var selected = null;
+
+    // État de la séquence en cours
+    var selected = null;          // position de départ originale [x, y]
+    var positionCourante = null;  // position visuelle actuelle du pion en mouvement
+    var coupsFiltres = [];        // coups encore possibles dans la séquence
+    var prisesFaites = [];        // pièces déjà capturées dans la séquence
+    var etape = 0;                // index de l'étape courante dans chemin[]
 
     const user = JSON.parse(sessionStorage.getItem("user"));
 
@@ -49,15 +55,10 @@
 
       socket.send(JSON.stringify({
         type: "login",
-        data: {
-          userId: user.id,
-          username: user.username
-        }
+        data: { userId: user.id, username: user.username }
       }));
 
-      socket.send(JSON.stringify({
-        type: "getGameState"
-      }));
+      socket.send(JSON.stringify({ type: "getGameState" }));
     };
 
     socket.onmessage = (event) => {
@@ -66,23 +67,18 @@
 
       if (msg.type === "error") {
         showError(msg.data);
+        reinitialiserSelection();
         return;
       }
 
       if (msg.type === "gameState") {
         currentGame = msg.data;
+        reinitialiserSelection();
 
-        let myColor = "";
-
-        if (user.id === currentGame.joueurs.blanc) {
-          myColor = "blanc";
-        } else if (user.id === currentGame.joueurs.noir) {
-          myColor = "noir";
-        }
+        const maCouleur = currentGame.joueurs.blanc === user.id ? "blanc" : "noir";
 
         document.getElementById("playerInfo").innerText =
-          "Vous jouez : " + user.username + " — " + myColor;
-
+          "Vous jouez : " + user.username + " — " + maCouleur;
         document.getElementById("turn").innerText =
           "Tour : " + currentGame.tour;
 
@@ -90,88 +86,163 @@
 
         if (currentGame.gagnant) {
           const myColorKey = user.id === currentGame.joueurs.blanc ? "blanc" : "noir";
-          const isWinner = currentGame.gagnant === myColorKey;
-          document.getElementById("gameOverMsg").innerText = isWinner ? "Vous avez gagné !" : "Vous avez perdu...";
+          const estGagnant = currentGame.gagnant === myColorKey;
+          let texte = "";
+          if (estGagnant) {
+            if (currentGame.raison === "abandon") texte = "Votre adversaire a abandonné. Vous avez gagné !";
+            else if (currentGame.raison === "deconnexion") texte = "Votre adversaire s'est déconnecté. Vous avez gagné !";
+            else texte = "Vous avez gagné !";
+          } else {
+            if (currentGame.raison === "abandon") texte = "Vous avez abandonné la partie.";
+            else texte = "Vous avez perdu...";
+          }
+          document.getElementById("gameOverMsg").innerText = texte;
           document.getElementById("gameOver").style.display = "flex";
         }
       }
     };
 
+    function reinitialiserSelection() {
+      selected = null;
+      positionCourante = null;
+      coupsFiltres = [];
+      prisesFaites = [];
+      etape = 0;
+    }
+
     function clickCell(x, y) {
+      if (!currentGame) return;
+
+      const maCouleur = currentGame.joueurs.blanc === user.id ? "blanc" : "noir";
+      if (currentGame.tour !== maCouleur) return;
+
+      // Aucune pièce sélectionnée : sélectionner
       if (!selected) {
+        const coups = (currentGame.coupsDisponibles || []).filter(
+          c => c.de[0] === x && c.de[1] === y
+        );
+        if (coups.length === 0) return;
+
         selected = [x, y];
-        renderBoard(currentGame.plateau);
-      } else {
+        positionCourante = [x, y];
+        coupsFiltres = coups;
+        prisesFaites = [];
+        etape = 0;
+        renderBoard(plateauVirtuel());
+        return;
+      }
+
+      // Calculer les prochaines cases valides à cette étape
+      const prochaines = new Set();
+      const finales = new Set();
+      for (const c of coupsFiltres) {
+        if (c.chemin.length > etape) {
+          prochaines.add(c.chemin[etape][0] + "," + c.chemin[etape][1]);
+        } else {
+          finales.add(c.vers[0] + "," + c.vers[1]);
+        }
+      }
+
+      const cle = x + "," + y;
+
+      if (finales.has(cle)) {
+        // Case finale : envoyer le coup complet au serveur
         socket.send(JSON.stringify({
           type: "move",
-          data: {
-            gameId: currentGame.id,
-            from: selected,
-            to: [x, y]
-          }
+          data: { gameId: currentGame.id, from: selected, to: [x, y] }
         }));
-        selected = null;
+        reinitialiserSelection();
+
+      } else if (prochaines.has(cle)) {
+        // Étape intermédiaire : avancer la séquence visuellement
+        const nouveauxFiltres = coupsFiltres.filter(
+          c => c.chemin.length > etape &&
+               c.chemin[etape][0] === x && c.chemin[etape][1] === y
+        );
+        // La prise effectuée à cette étape
+        prisesFaites.push(nouveauxFiltres[0].prises[etape]);
+        positionCourante = [x, y];
+        coupsFiltres = nouveauxFiltres;
+        etape++;
+        renderBoard(plateauVirtuel());
+
+      } else {
+        // Clic invalide : désélectionner et essayer de sélectionner la nouvelle case
+        reinitialiserSelection();
+        renderBoard(currentGame.plateau);
+        clickCell(x, y);
       }
+    }
+
+    // Génère un plateau virtuel reflétant les étapes intermédiaires déjà effectuées
+    function plateauVirtuel() {
+      if (!selected || !positionCourante) return currentGame.plateau;
+
+      const vp = currentGame.plateau.map(ligne => [...ligne]);
+      const piece = vp[selected[0]][selected[1]];
+      vp[selected[0]][selected[1]] = null;
+      vp[positionCourante[0]][positionCourante[1]] = piece;
+      for (const [px, py] of prisesFaites) {
+        vp[px][py] = null;
+      }
+      return vp;
     }
 
     function renderBoard(board) {
       const div = document.getElementById("board");
-
       div.innerHTML = "";
       div.style.display = "grid";
       div.style.gridTemplateColumns = "repeat(10, 40px)";
 
       const maCouleur = currentGame.joueurs.blanc === user.id ? "blanc" : "noir";
       const monTour = currentGame.tour === maCouleur;
-      const captures = monTour
-        ? (currentGame.coupsDisponibles || []).filter(c => c.prise !== null)
-        : [];
-      const aCapture = new Set(captures.map(c => c.prise[0] + "," + c.prise[1]));
+
+      // Pièces adverses capturables (vert) — uniquement hors séquence
+      const aCapture = new Set();
+      if (monTour && !selected) {
+        (currentGame.coupsDisponibles || [])
+          .filter(c => c.prises && c.prises.length > 0)
+          .forEach(c => aCapture.add(c.prises[0][0] + "," + c.prises[0][1]));
+      }
+
+      // Prochaines cases valides (bleu) — selon l'étape courante
+      const aDestination = new Set();
+      if (selected) {
+        for (const c of coupsFiltres) {
+          if (c.chemin.length > etape) {
+            aDestination.add(c.chemin[etape][0] + "," + c.chemin[etape][1]);
+          } else {
+            aDestination.add(c.vers[0] + "," + c.vers[1]);
+          }
+        }
+      }
 
       for (let i = 0; i < 10; i++) {
         for (let j = 0; j < 10; j++) {
-
           const cell = document.createElement("div");
-
           cell.style.width = "40px";
           cell.style.height = "40px";
           cell.style.border = "1px solid black";
 
-          // couleur de la case
-          if ((i + j) % 2 === 0) {
-            cell.style.backgroundColor = "#eee";
-          } else {
-            cell.style.backgroundColor = "#666";
-          }
+          cell.style.backgroundColor = (i + j) % 2 === 0 ? "#eee" : "#666";
 
-          // surbrillance prise obligatoire
-          if (aCapture.has(i + "," + j)) {
-            cell.style.backgroundColor = "#4caf50";
-          }
-
-          // surbrillance sélection
-          if (selected && selected[0] === i && selected[1] === j) {
+          if (aCapture.has(i + "," + j)) cell.style.backgroundColor = "#4caf50";
+          if (aDestination.has(i + "," + j)) cell.style.backgroundColor = "#2196f3";
+          if (positionCourante && positionCourante[0] === i && positionCourante[1] === j) {
             cell.style.backgroundColor = "yellow";
           }
 
-          // pion
           if (board[i][j]) {
             const piece = board[i][j];
-
-            if (piece.startsWith("blanc")) {
-              cell.innerText = piece.includes("dame") ? "♔" : "●";
-              cell.style.color = "white";
-            } else {
-              cell.innerText = piece.includes("dame") ? "♚" : "●";
-              cell.style.color = "black";
-            }
-
+            cell.innerText = piece.startsWith("blanc")
+              ? (piece.includes("dame") ? "♔" : "●")
+              : (piece.includes("dame") ? "♚" : "●");
+            cell.style.color = piece.startsWith("blanc") ? "white" : "black";
             cell.style.textAlign = "center";
             cell.style.lineHeight = "40px";
           }
 
           cell.onclick = () => clickCell(i, j);
-
           div.appendChild(cell);
         }
       }
@@ -189,10 +260,7 @@
     function showError(msg) {
       const box = document.getElementById("errorBox");
       box.innerText = msg;
-
-      setTimeout(() => {
-        box.innerText = "";
-      }, 2000);
+      setTimeout(() => { box.innerText = ""; }, 2000);
     }
   </script>
 
