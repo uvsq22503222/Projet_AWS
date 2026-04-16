@@ -125,6 +125,40 @@ async function handleMessage(ws, msg, clients, users, wss) {
             break;
         }
 
+        case "abandon": {
+            const player = clients.get(ws);
+            const gameId = playerGameMap.get(player);
+            const game = games[gameId];
+
+            if (!game) {
+                ws.send(JSON.stringify({ type: "error", data: "Aucune partie en cours" }));
+                return;
+            }
+
+            const winnerId = game.joueurs.blanc === player
+                ? game.joueurs.noir
+                : game.joueurs.blanc;
+
+            game.gagnant = game.joueurs.blanc === winnerId ? "blanc" : "noir";
+
+            await db('users').where({ id: winnerId }).increment('score', 1);
+            const winnerUser = users.find(u => u.id === winnerId);
+            if (winnerUser) winnerUser.score = (winnerUser.score || 0) + 1;
+
+            playerGameMap.delete(game.joueurs.blanc);
+            playerGameMap.delete(game.joueurs.noir);
+
+            wss.clients.forEach(client => {
+                const clientUser = clients.get(client);
+                if (clientUser === game.joueurs.blanc || clientUser === game.joueurs.noir) {
+                    client.send(JSON.stringify({ type: "gameState", data: game }));
+                }
+            });
+
+            broadcastPlayers(wss, users, playerGameMap);
+            break;
+        }
+
         case "move": {
             const player = clients.get(ws);
 

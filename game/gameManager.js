@@ -38,7 +38,7 @@ function makeMove(id, from, to, joueur) {
     (game.tour === "blanc" && joueur !== game.joueurs.blanc) ||
     (game.tour === "noir" && joueur !== game.joueurs.noir)
   ) {
-    console.log("❌ Pas ton tour");
+    console.log("Pas ton tour");
     return { error: "Pas ton tour" };
   }
 
@@ -53,7 +53,7 @@ function makeMove(id, from, to, joueur) {
   );
 
   if (!coup) {
-    console.log("❌ Coup invalide");
+    console.log("Coup invalide");
     return { error: "Coup invalide" };
   }
 

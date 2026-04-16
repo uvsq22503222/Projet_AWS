@@ -15,6 +15,7 @@
     <h3 id="playerInfo"></h3>
     <h3 id="turn"></h3>
     <h3 id="errorBox" style="color:red; height:20px;"></h3>
+    <button onclick="abandonGame()" style="background:#c0392b; color:white; margin-top:8px;">Abandonner</button>
   </div>
 
   <div id="board" style="margin-top:30px;"></div>
@@ -174,6 +175,15 @@
           div.appendChild(cell);
         }
       }
+    }
+
+    function abandonGame() {
+      if (!currentGame) return;
+      if (!confirm("Voulez-vous vraiment abandonner la partie ?")) return;
+      socket.send(JSON.stringify({
+        type: "abandon",
+        data: { gameId: currentGame.id }
+      }));
     }
 
     function showError(msg) {

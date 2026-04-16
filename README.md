@@ -1,4 +1,9 @@
 # Projet_AWS
+
+- GE Shuning
+- HUANG Yanmo
+
+
 Jeu de dames
 
 Description du jeu
