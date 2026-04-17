@@ -1,6 +1,5 @@
 const express = require('express');
-const https = require('https');
-const fs = require('fs');
+const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 const bcrypt = require('bcrypt');
@@ -13,11 +12,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// serveur HTTPS
-const server = https.createServer({
-    cert: fs.readFileSync('./cert.pem'),
-    key: fs.readFileSync('./key.pem')
-}, app);
+const server = http.createServer(app);
 
 // serveur WebSocket
 const wss = new WebSocket.Server({ server });
@@ -84,6 +79,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-server.listen(3000, () => {
-    console.log("Server running on https://localhost:3000");
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });
