@@ -9,6 +9,7 @@ async function init() {
       table.string('username').unique();
       table.string('password');
       table.integer('score').defaultTo(0);
+      table.integer('losses').defaultTo(0);
     });
 
     console.log("Table users créée avec succès");

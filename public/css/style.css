@@ -64,6 +64,8 @@ hr {
 .player {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   padding: 10px;
   border-radius: 10px;
   margin-bottom: 8px;
@@ -71,8 +73,13 @@ hr {
 }
 
 .small-btn {
-  padding: 5px 10px;
-  font-size: 12px;
+  width: auto;
+  padding: 8px 20px;
+  font-size: 14px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 0;
+  align-self: center;
 }
 
 .disabled-btn{

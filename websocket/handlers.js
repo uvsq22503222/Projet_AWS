@@ -22,7 +22,8 @@ async function handleMessage(ws, msg, clients, users, wss) {
             const user = {
                 id: data.userId,
                 username: data.username,
-                score: dbUser ? dbUser.score : 0
+                score: dbUser ? dbUser.score : 0,
+                losses: dbUser ? dbUser.losses : 0
             };
 
             if (!users.find(u => u.id === user.id)) {
@@ -150,9 +151,13 @@ async function handleMessage(ws, msg, clients, users, wss) {
             game.gagnant = game.joueurs.blanc === winnerId ? "blanc" : "noir";
             game.raison = "abandon";
 
+            const loserId = game.joueurs.blanc === player ? game.joueurs.blanc : game.joueurs.noir;
             await db('users').where({ id: winnerId }).increment('score', 1);
+            await db('users').where({ id: loserId }).increment('losses', 1);
             const winnerUser = users.find(u => u.id === winnerId);
             if (winnerUser) winnerUser.score = (winnerUser.score || 0) + 1;
+            const loserUser = users.find(u => u.id === loserId);
+            if (loserUser) loserUser.losses = (loserUser.losses || 0) + 1;
 
             playerGameMap.delete(game.joueurs.blanc);
             playerGameMap.delete(game.joueurs.noir);
@@ -192,9 +197,15 @@ async function handleMessage(ws, msg, clients, users, wss) {
                 const winnerId = game.gagnant === "blanc"
                     ? game.joueurs.blanc
                     : game.joueurs.noir;
+                const loserId = game.gagnant === "blanc"
+                    ? game.joueurs.noir
+                    : game.joueurs.blanc;
                 await db('users').where({ id: winnerId }).increment('score', 1);
+                await db('users').where({ id: loserId }).increment('losses', 1);
                 const winnerUser = users.find(u => u.id === winnerId);
                 if (winnerUser) winnerUser.score = (winnerUser.score || 0) + 1;
+                const loserUser = users.find(u => u.id === loserId);
+                if (loserUser) loserUser.losses = (loserUser.losses || 0) + 1;
 
                 playerGameMap.delete(game.joueurs.blanc);
                 playerGameMap.delete(game.joueurs.noir);
@@ -257,8 +268,11 @@ function handleDisconnect(ws, clients, users, wss) {
         game.raison = "deconnexion";
 
         await db('users').where({ id: winnerId }).increment('score', 1);
+        await db('users').where({ id: userId }).increment('losses', 1);
         const winnerUser = users.find(u => u.id === winnerId);
         if (winnerUser) winnerUser.score = (winnerUser.score || 0) + 1;
+        const loserUser = users.find(u => u.id === userId);
+        if (loserUser) loserUser.losses = (loserUser.losses || 0) + 1;
 
         playerGameMap.delete(game.joueurs.blanc);
         playerGameMap.delete(game.joueurs.noir);

@@ -7,15 +7,15 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 
-<body>
+<body style="align-items: flex-start; padding-top: 60px;">
 
-  <div class="container">
+  <div class="container" style="width:560px; padding:50px 60px;">
 
     <h2>Salon</h2>
 
     <p id="me"></p>
 
-    <div class="player-list" id="players"></div>
+    <div class="player-list" id="players" style="font-size:16px;"></div>
 
     <div id="challenge-incoming" style="display:none; margin-top:16px; padding:12px;
        border:1px solid #aaa; border-radius:8px; background:#f9f9f9;">
@@ -39,7 +39,7 @@
     }
 
     document.getElementById("me").innerText =
-      "Connecté : " + user.username;
+      "Connecté : " + user.username + " — V : " + (user.score || 0) + " / D : " + (user.losses || 0);
 
     const socket = new WebSocket("ws://localhost:3000");
 
@@ -60,6 +60,11 @@
       console.log("Message reçu :", msg);
 
       if (msg.type === "players") {
+        const moi = msg.data.find(p => p.id === user.id);
+        if (moi) {
+          document.getElementById("me").innerText =
+            "Connecté : " + user.username + " — V : " + (moi.score || 0) + " / D : " + (moi.losses || 0);
+        }
         renderPlayers(msg.data);
       }
 
@@ -116,7 +121,7 @@
           name.innerText = p.username + " (En jeu)";
           name.style.color = "#888";
         } else {
-          name.innerText = p.username + "(Victoires : " + (p.score || 0) + ")";
+          name.innerText = p.username + " (V : " + (p.score || 0) + " / D : " + (p.losses || 0) + ")";
         }
         const btn = document.createElement("button");
 
