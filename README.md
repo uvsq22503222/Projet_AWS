@@ -20,21 +20,6 @@ Le jeu de dames international se joue à deux joueurs (noir et blanc) sur un éc
 
 ---
 
-## Générer un certificat HTTPS (local)
-
-Dans le terminal, exécuter :
-```bash
-openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365
-```
-
-Appuyer sur Entrée pour toutes les questions.
-
-Deux fichiers seront créés :
-
-* key.pem
-* cert.pem
----
-
 ## Lancer le projet
 
 ```bash
@@ -67,16 +52,6 @@ Ouvrir [https://localhost:3000](http://localhost:3000) dans le navigateur.
     ├── partie.html        # Interface de jeu
     └── css/style.css
 ```
-
----
-
-## Problèmes connus
-
-### Certificat HTTPS non inclus dans le dépôt
-Il faut générer les fichiers `cert.pem` et `key.pem` manuellement (voir section "Générer un certificat HTTPS" ci-dessus).
-
-### Certificat auto-signé non reconnu par les navigateurs
-Le certificat généré localement n'est pas signé par une autorité de certification reconnue. Les navigateurs affichent un avertissement de sécurité. Il faut cliquer sur "Avancé" puis "Continuer quand même" pour accéder au site.
 
 ---
 
