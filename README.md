@@ -20,6 +20,21 @@ Le jeu de dames international se joue à deux joueurs (noir et blanc) sur un éc
 
 ---
 
+## Générer un certificat HTTPS (local)
+
+Dans le terminal, exécuter :
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365
+```
+
+Appuyer sur Entrée pour toutes les questions.
+
+Deux fichiers seront créés :
+
+* key.pem
+* cert.pem
+---
+
 ## Lancer le projet
 
 ```bash
@@ -39,6 +54,8 @@ Ouvrir [https://localhost:3000](http://localhost:3000) dans le navigateur.
 ├── db.js                  # Connexion SQLite via Knex
 ├── init_db.js             # Initialisation de la base de données
 ├── knexfile.js            # Configuration Knex
+├── key.pem                # Certifica TSL
+├── cert.pem
 ├── game/
 │   ├── gameRules.js       # Logique complète du jeu de dames international
 │   └── gameManager.js     # Gestion des parties en cours
