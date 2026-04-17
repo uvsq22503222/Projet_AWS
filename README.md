@@ -28,8 +28,6 @@ node init_db.js   # initialiser la base de données (à faire une seule fois)
 node server.js    # démarrer le serveur
 ```
 
-Ouvrir [https://localhost:3000](http://localhost:3000) dans le navigateur.
-
 ---
 
 ## Structure du projet
