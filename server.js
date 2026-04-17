@@ -67,7 +67,7 @@ wss.on('connection', (ws) => {
     ws.on('close', async () => {
         const userId = clients.get(ws);
 
-        await handleDisconnect(ws, clients, users, wss); // gérer abandon si en partie
+        handleDisconnect(ws, clients, users, wss); // gérer abandon si en partie
 
         clients.delete(ws);
 

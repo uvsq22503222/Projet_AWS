@@ -5,7 +5,13 @@ const minuteursDeconnexion = new Map(); // userId -> timer
 
 // traiter les messages WebSocket
 async function handleMessage(ws, msg, clients, users, wss) {
-    const { type, data } = JSON.parse(msg);
+    let type, data;
+    try {
+        ({ type, data } = JSON.parse(msg));
+    } catch (e) {
+        ws.send(JSON.stringify({ type: "error", data: "Message invalide" }));
+        return;
+    }
 
     switch (type) {
 

@@ -54,7 +54,7 @@ Ouvrir [https://localhost:3000](http://localhost:3000) dans le navigateur.
 ├── db.js                  # Connexion SQLite via Knex
 ├── init_db.js             # Initialisation de la base de données
 ├── knexfile.js            # Configuration Knex
-├── key.pem                # Certifica TSL
+├── key.pem                # Certificat TLS
 ├── cert.pem
 ├── game/
 │   ├── gameRules.js       # Logique complète du jeu de dames international
