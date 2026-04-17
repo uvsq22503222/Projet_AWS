@@ -1,5 +1,8 @@
 # Projet_AWS — Jeu de dames international
 
+- GE Shuning (AMIS)
+- HUANG Yanmo (DATASCALE)
+
 ---
 
 ## Description du jeu
