@@ -3,21 +3,24 @@ const db = require('../db');
 const playerGameMap = new Map(); // userId -> gameId
 const minuteursDeconnexion = new Map(); // userId -> timer
 
+// traiter les messages WebSocket
 async function handleMessage(ws, msg, clients, users, wss) {
     const { type, data } = JSON.parse(msg);
 
     switch (type) {
 
+        // joueur connecté au salon ou à la partie
         case "login": {
             clients.set(ws, data.userId);
 
-            // Annuler le minuteur de déconnexion si le joueur reconnecte
+            // reconnexion : annuler le minuteur d'abandon
             if (minuteursDeconnexion.has(data.userId)) {
                 clearTimeout(minuteursDeconnexion.get(data.userId));
                 minuteursDeconnexion.delete(data.userId);
-                console.log("Reconnexion détectée, minuteur annulé :", data.userId);
+                console.log("Reconnexion détectée :", data.userId);
             }
 
+            // récupérer les stats depuis la BD
             const dbUser = await db('users').where({ id: data.userId }).first();
             const user = {
                 id: data.userId,
@@ -26,62 +29,43 @@ async function handleMessage(ws, msg, clients, users, wss) {
                 losses: dbUser ? dbUser.losses : 0
             };
 
-            if (!users.find(u => u.id === user.id)) {
-                users.push(user);
-            }
+            if (!users.find(u => u.id === user.id)) users.push(user);
 
             console.log("Utilisateurs en ligne :", users);
-
-            wss.clients.forEach(client => {
-                client.send(JSON.stringify({
-                    type: "players",
-                    data: users.map(u => ({ ...u, inGame: playerGameMap.has(u.id) }))
-                }));
-            });
-
+            diffuserJoueurs(wss, users, playerGameMap);
             break;
         }
 
-        case "challenge":
+        // envoyer un défi
+        case "challenge": {
             const from = data.from;
             const to = data.to;
 
+            // vérifier que les deux joueurs sont disponibles
             if (playerGameMap.has(from)) {
-                ws.send(JSON.stringify({
-                    type: "error",
-                    data: "Vous êtes déjà dans une partie"
-                }));
+                ws.send(JSON.stringify({ type: "error", data: "Vous êtes déjà dans une partie" }));
                 return;
             }
-
             if (playerGameMap.has(to)) {
-                ws.send(JSON.stringify({
-                    type: "error",
-                    data: "Ce joueur est déjà dans une partie"
-                }));
+                ws.send(JSON.stringify({ type: "error", data: "Ce joueur est déjà dans une partie" }));
                 return;
             }
 
-            const opponent = [...clients.entries()].find(
-                ([, id]) => id === data.to
-            );
-            console.log("Clients connectés :", [...clients.values()]);
-            console.log("Recherche du joueur :", data.to);
-
+            // trouver la connexion de l'adversaire
+            const opponent = [...clients.entries()].find(([, id]) => id === to);
             if (opponent) {
                 opponent[0].send(JSON.stringify({
                     type: "challenge",
                     data: {
-                        from: {
-                            id: data.from,
-                            username: users.find(u => u.id === data.from).username
-                        },
-                        to: data.to
+                        from: { id: from, username: users.find(u => u.id === from).username },
+                        to
                     }
                 }));
             }
             break;
+        }
 
+        // défi accepté : lancer la partie
         case "acceptChallenge": {
             const game = createGame(data.from, data.to);
             console.log("Partie lancée :", game);
@@ -89,6 +73,7 @@ async function handleMessage(ws, msg, clients, users, wss) {
             playerGameMap.set(data.from, game.id);
             playerGameMap.set(data.to, game.id);
 
+            // notifier les deux joueurs
             wss.clients.forEach(client => {
                 const clientUser = clients.get(client);
                 if (clientUser === game.joueurs.blanc || clientUser === game.joueurs.noir) {
@@ -97,11 +82,11 @@ async function handleMessage(ws, msg, clients, users, wss) {
                 }
             });
 
-            broadcastPlayers(wss, users, playerGameMap);
-
+            diffuserJoueurs(wss, users, playerGameMap);
             break;
         }
 
+        // défi refusé
         case "declineChallenge": {
             const challenger = [...clients.entries()].find(([, id]) => id === data.to);
             if (challenger) {
@@ -114,26 +99,22 @@ async function handleMessage(ws, msg, clients, users, wss) {
             break;
         }
 
+        // récupérer l'état de la partie en cours
         case "getGameState": {
             const player = clients.get(ws);
             const gameId = playerGameMap.get(player);
             const game = games[gameId];
 
             if (!game) {
-                ws.send(JSON.stringify({
-                    type: "error",
-                    data: "Aucune partie en cours"
-                }));
+                ws.send(JSON.stringify({ type: "error", data: "Aucune partie en cours" }));
                 return;
             }
 
-            ws.send(JSON.stringify({
-                type: "gameState",
-                data: game
-            }));
+            ws.send(JSON.stringify({ type: "gameState", data: game }));
             break;
         }
 
+        // joueur abandonne volontairement
         case "abandon": {
             const player = clients.get(ws);
             const gameId = playerGameMap.get(player);
@@ -144,14 +125,14 @@ async function handleMessage(ws, msg, clients, users, wss) {
                 return;
             }
 
-            const winnerId = game.joueurs.blanc === player
-                ? game.joueurs.noir
-                : game.joueurs.blanc;
+            // l'adversaire gagne
+            const winnerId = game.joueurs.blanc === player ? game.joueurs.noir : game.joueurs.blanc;
+            const loserId = player;
 
             game.gagnant = game.joueurs.blanc === winnerId ? "blanc" : "noir";
             game.raison = "abandon";
 
-            const loserId = game.joueurs.blanc === player ? game.joueurs.blanc : game.joueurs.noir;
+            // mettre à jour les stats
             await db('users').where({ id: winnerId }).increment('score', 1);
             await db('users').where({ id: loserId }).increment('losses', 1);
             const winnerUser = users.find(u => u.id === winnerId);
@@ -162,6 +143,7 @@ async function handleMessage(ws, msg, clients, users, wss) {
             playerGameMap.delete(game.joueurs.blanc);
             playerGameMap.delete(game.joueurs.noir);
 
+            // notifier les deux joueurs
             wss.clients.forEach(client => {
                 const clientUser = clients.get(client);
                 if (clientUser === game.joueurs.blanc || clientUser === game.joueurs.noir) {
@@ -169,37 +151,27 @@ async function handleMessage(ws, msg, clients, users, wss) {
                 }
             });
 
-            broadcastPlayers(wss, users, playerGameMap);
+            diffuserJoueurs(wss, users, playerGameMap);
             break;
         }
 
+        // jouer un coup
         case "move": {
             const player = clients.get(ws);
-
             console.log("Coup reçu de :", player);
 
-            const game = makeMove(
-                data.gameId,
-                data.from,
-                data.to,
-                player
-            );
+            const game = makeMove(data.gameId, data.from, data.to, player);
 
             if (game && game.error) {
-                ws.send(JSON.stringify({
-                    type: "error",
-                    data: game.error
-                }));
+                ws.send(JSON.stringify({ type: "error", data: game.error }));
                 return;
             }
 
+            // fin de partie
             if (game.gagnant) {
-                const winnerId = game.gagnant === "blanc"
-                    ? game.joueurs.blanc
-                    : game.joueurs.noir;
-                const loserId = game.gagnant === "blanc"
-                    ? game.joueurs.noir
-                    : game.joueurs.blanc;
+                const winnerId = game.gagnant === "blanc" ? game.joueurs.blanc : game.joueurs.noir;
+                const loserId = game.gagnant === "blanc" ? game.joueurs.noir : game.joueurs.blanc;
+
                 await db('users').where({ id: winnerId }).increment('score', 1);
                 await db('users').where({ id: loserId }).increment('losses', 1);
                 const winnerUser = users.find(u => u.id === winnerId);
@@ -209,17 +181,14 @@ async function handleMessage(ws, msg, clients, users, wss) {
 
                 playerGameMap.delete(game.joueurs.blanc);
                 playerGameMap.delete(game.joueurs.noir);
-
-                broadcastPlayers(wss, users, playerGameMap);
+                diffuserJoueurs(wss, users, playerGameMap);
             }
 
+            // envoyer le nouvel état aux deux joueurs
             wss.clients.forEach(client => {
                 const clientUser = clients.get(client);
                 if (clientUser === game.joueurs.blanc || clientUser === game.joueurs.noir) {
-                    client.send(JSON.stringify({
-                        type: "gameState",
-                        data: game
-                    }));
+                    client.send(JSON.stringify({ type: "gameState", data: game }));
                 }
             });
 
@@ -228,18 +197,17 @@ async function handleMessage(ws, msg, clients, users, wss) {
     }
 }
 
-function broadcastPlayers(wss, users, playerGameMap) {
+// envoyer la liste des joueurs à tous
+function diffuserJoueurs(wss, users, playerGameMap) {
     wss.clients.forEach(client => {
         client.send(JSON.stringify({
             type: "players",
-            data: users.map(u => ({
-                ...u,
-                inGame: playerGameMap.has(u.id)
-            }))
+            data: users.map(u => ({ ...u, inGame: playerGameMap.has(u.id) }))
         }));
     });
 }
 
+// gérer une déconnexion inattendue
 function handleDisconnect(ws, clients, users, wss) {
     const userId = clients.get(ws);
     if (!userId) return;
@@ -247,26 +215,25 @@ function handleDisconnect(ws, clients, users, wss) {
     const gameId = playerGameMap.get(userId);
     if (!gameId) return;
 
-    // Attendre 5 secondes avant de traiter la déconnexion (pour laisser le temps de se reconnecter)
+    // attendre 5 secondes (temps de changer de page)
     const timer = setTimeout(async () => {
         minuteursDeconnexion.delete(userId);
 
         const game = games[gameId];
         if (!game || game.gagnant) return;
 
-        // Vérifier que le joueur ne s'est pas reconnecté
+        // vérifier qu'il ne s'est pas reconnecté
         const estReconnecte = [...clients.values()].includes(userId);
         if (estReconnecte) return;
 
-        console.log("Déconnexion confirmée pour :", userId);
+        console.log("Déconnexion confirmée :", userId);
 
-        const winnerId = game.joueurs.blanc === userId
-            ? game.joueurs.noir
-            : game.joueurs.blanc;
+        const winnerId = game.joueurs.blanc === userId ? game.joueurs.noir : game.joueurs.blanc;
 
         game.gagnant = game.joueurs.blanc === winnerId ? "blanc" : "noir";
         game.raison = "deconnexion";
 
+        // mettre à jour les stats
         await db('users').where({ id: winnerId }).increment('score', 1);
         await db('users').where({ id: userId }).increment('losses', 1);
         const winnerUser = users.find(u => u.id === winnerId);
@@ -277,6 +244,7 @@ function handleDisconnect(ws, clients, users, wss) {
         playerGameMap.delete(game.joueurs.blanc);
         playerGameMap.delete(game.joueurs.noir);
 
+        // notifier l'adversaire
         wss.clients.forEach(client => {
             const clientUser = clients.get(client);
             if (clientUser === winnerId) {
@@ -284,7 +252,7 @@ function handleDisconnect(ws, clients, users, wss) {
             }
         });
 
-        broadcastPlayers(wss, users, playerGameMap);
+        diffuserJoueurs(wss, users, playerGameMap);
     }, 5000);
 
     minuteursDeconnexion.set(userId, timer);

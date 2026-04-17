@@ -12,94 +12,74 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// HTTP server
+// serveur HTTP
 const server = http.createServer(app);
 
-// WebSocket
+// serveur WebSocket
 const wss = new WebSocket.Server({ server });
 
-// stocke users
 const clients = new Map(); // ws -> userId
+const users = []; // joueurs en ligne
 
-const users = [];
-
-// users registered
+// inscription
 app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+    const { username, password } = req.body;
 
-  try {
-    const hash = await bcrypt.hash(password, 10);
-
-    await db('users').insert({
-      username,
-      password: hash
-    });
-
-    res.json({ success: true });
-  } catch (e) {
-    res.json({ success: false, error: 'username already exists' });
-  }
+    try {
+        const hash = await bcrypt.hash(password, 10); // hashage mot de passe
+        await db('users').insert({ username, password: hash });
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false, error: 'username already exists' });
+    }
 });
 
-// users login
+// connexion
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+    const { username, password } = req.body;
 
-  const user = await db('users')
-    .where({ username })
-    .first();
+    const user = await db('users').where({ username }).first();
 
-  if (!user) {
-    return res.json({ success: false, error: 'username not found' });
-  }
+    if (!user) return res.json({ success: false, error: 'username not found' });
 
-  const ok = await bcrypt.compare(password, user.password);
+    const ok = await bcrypt.compare(password, user.password); // vérification mot de passe
+    if (!ok) return res.json({ success: false, error: 'incorrect password' });
 
-  if (!ok) {
-    return res.json({ success: false, error: 'incorrect password' });
-  }
-
-  res.json({
-    success: true,
-    user: {
-      id: user.id,
-      username: user.username,
-      score: user.score
-    }
-  });
+    res.json({
+        success: true,
+        user: { id: user.id, username: user.username, score: user.score }
+    });
 });
 
 wss.on('connection', (ws) => {
-  console.log("WebSocket connected");
+    console.log("WebSocket connected");
 
-  ws.on('message', (msg) => {
-    handleMessage(ws, msg, clients, users, wss);
-  });
-
-  ws.on('close', async () => {
-    const userId = clients.get(ws);
-
-    await handleDisconnect(ws, clients, users, wss);
-
-    clients.delete(ws);
-
-    const index = users.findIndex(u => u.id === userId);
-    if (index !== -1) {
-      users.splice(index, 1);
-    }
-
-    console.log("WebSocket disconnected:", userId);
-
-    wss.clients.forEach(client => {
-      client.send(JSON.stringify({
-        type: "players",
-        data: users
-      }));
+    // message reçu
+    ws.on('message', (msg) => {
+        handleMessage(ws, msg, clients, users, wss);
     });
-  });
 
+    // déconnexion
+    ws.on('close', async () => {
+        const userId = clients.get(ws);
+
+        await handleDisconnect(ws, clients, users, wss); // gérer abandon si en partie
+
+        clients.delete(ws);
+
+        // retirer de la liste en ligne
+        const index = users.findIndex(u => u.id === userId);
+        if (index !== -1) users.splice(index, 1);
+
+        console.log("WebSocket disconnected:", userId);
+
+        // mettre à jour la liste pour tous
+        wss.clients.forEach(client => {
+            client.send(JSON.stringify({ type: "players", data: users }));
+        });
+    });
 });
 
 server.listen(3000, () => {
-  console.log("Server running on http://localhost:3000");
+    console.log("Server running on http://localhost:3000");
 });
