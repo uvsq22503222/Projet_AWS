@@ -41,7 +41,7 @@
     document.getElementById("me").innerText =
       "Connecté : " + user.username + " — V : " + (user.score || 0) + " / D : " + (user.losses || 0);
 
-    const socket = new WebSocket("wss://localhost:3000");
+    const socket = new WebSocket(`wss://${location.host}`);
 
     socket.onopen = () => {
       console.log("WebSocket connected");
